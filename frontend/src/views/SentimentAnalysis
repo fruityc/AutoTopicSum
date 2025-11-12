@@ -1,0 +1,30 @@
+<template>
+  <div class="sentiment-analysis-page">
+    <el-page-header @back="$router.go(-1)" title="返回">
+      <template #content>
+        <span class="text-large font-600 mr-3"> 情感分析 </span>
+      </template>
+    </el-page-header>
+    
+    <el-card style="margin-top: 20px;">
+      <sentiment-analysis />
+    </el-card>
+  </div>
+</template>
+
+<script>
+import SentimentAnalysis from '@/components/SentimentAnalysis.vue'
+
+export default {
+  name: 'SentimentAnalysisPage',
+  components: {
+    SentimentAnalysis
+  }
+}
+</script>
+
+<style scoped>
+.sentiment-analysis-page {
+  padding: 20px;
+}
+</style>
