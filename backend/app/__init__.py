@@ -2,6 +2,13 @@
 import logging
 from flask import Flask
 from flask_cors import CORS
+from flask import Blueprint
+
+api_bp = Blueprint('api', __name__)
+
+# 导入各个路由模块
+from . import events
+from . import sentiment  # 新增情感分析路由
 
 
 def create_app(config_name='default'):
