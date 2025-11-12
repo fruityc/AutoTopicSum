@@ -11,3 +11,10 @@ python-Levenshtein
 numpy
 scikit-learn
 sentence-transformers
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+beautifulsoup4==4.12.2
+jieba==0.42.1
+numpy==1.24.3
+pandas==2.0.3
