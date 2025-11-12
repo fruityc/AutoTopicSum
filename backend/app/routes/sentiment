@@ -1,0 +1,44 @@
+from flask import Blueprint, request, jsonify
+from app.services.sentiment_service import sentiment_analyzer
+
+sentiment_bp = Blueprint('sentiment', __name__)
+
+@sentiment_bp.route('/analyze', methods=['POST'])
+def analyze_sentiment():
+    """分析单个文本的情感"""
+    data = request.get_json()
+    
+    if not data or 'text' not in data:
+        return jsonify({'error': '缺少文本参数'}), 400
+    
+    text = data['text']
+    result = sentiment_analyzer.analyze_text(text)
+    
+    return jsonify(result)
+
+@sentiment_bp.route('/analyze-news', methods=['POST'])
+def analyze_news():
+    """批量分析新闻情感"""
+    data = request.get_json()
+    
+    if not data or 'news_list' not in data:
+        return jsonify({'error': '缺少新闻列表参数'}), 400
+    
+    news_list = data['news_list']
+    results = sentiment_analyzer.analyze_news_list(news_list)
+    
+    return jsonify({'analyzed_news': results})
+
+@sentiment_bp.route('/trend', methods=['GET'])
+def get_sentiment_trend():
+    """获取情感趋势"""
+    trend_data = sentiment_analyzer.get_trend_analysis()
+    return jsonify(trend_data)
+
+@sentiment_bp.route('/history', methods=['GET'])
+def get_analysis_history():
+    """获取分析历史"""
+    return jsonify({
+        'history': sentiment_analyzer.analysis_history,
+        'total_count': len(sentiment_analyzer.analysis_history)
+    })
