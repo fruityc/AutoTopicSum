@@ -1,0 +1,271 @@
+<template>
+  <div class="sentiment-analysis">
+    <div class="analysis-section">
+      <h3>情感分析</h3>
+      
+      <!-- 输入区域 -->
+      <div class="input-section">
+        <el-input
+          type="textarea"
+          :rows="4"
+          placeholder="输入新闻标题或内容进行情感分析..."
+          v-model="inputText"
+        ></el-input>
+        <el-button 
+          type="primary" 
+          @click="handleAnalyze" 
+          :loading="analyzing"
+          style="margin-top: 10px;"
+        >
+          分析情感
+        </el-button>
+      </div>
+      
+      <!-- 结果显示 -->
+      <div class="result-section" v-if="currentResult">
+        <el-divider></el-divider>
+        <h4>分析结果</h4>
+        <div class="result-display">
+          <div class="sentiment-badge" :class="currentResult.sentiment">
+            {{ sentimentLabels[currentResult.sentiment] }}
+          </div>
+          <div class="confidence">
+            置信度: {{ (currentResult.confidence * 100).toFixed(1) }}%
+          </div>
+        </div>
+        
+        <!-- 情感分布图表 -->
+        <div class="chart-section">
+          <h5>情感分布</h5>
+          <div class="chart-container">
+            <canvas ref="sentimentChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 情感趋势 -->
+    <div class="trend-section" v-if="trendData.length > 0">
+      <el-divider></el-divider>
+      <h4>情感趋势</h4>
+      <div class="trend-chart-container">
+        <canvas ref="trendChart" width="600" height="300"></canvas>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { analyzeText, getSentimentTrend } from '@/api/sentiment'
+import Chart from 'chart.js/auto'
+
+export default {
+  name: 'SentimentAnalysis',
+  data() {
+    return {
+      inputText: '',
+      analyzing: false,
+      currentResult: null,
+      trendData: [],
+      sentimentLabels: {
+        positive: '积极',
+        neutral: '中性',
+        negative: '负面'
+      },
+      sentimentChart: null,
+      trendChart: null
+    }
+  },
+  mounted() {
+    this.loadTrendData()
+  },
+  methods: {
+    async handleAnalyze() {
+      if (!this.inputText.trim()) {
+        this.$message.warning('请输入要分析的文本')
+        return
+      }
+      
+      this.analyzing = true
+      try {
+        const response = await analyzeText(this.inputText)
+        this.currentResult = response.data
+        this.$nextTick(() => {
+          this.renderSentimentChart()
+        })
+        this.loadTrendData() // 重新加载趋势数据
+      } catch (error) {
+        console.error('情感分析失败:', error)
+        this.$message.error('分析失败，请重试')
+      } finally {
+        this.analyzing = false
+      }
+    },
+    
+    async loadTrendData() {
+      try {
+        const response = await getSentimentTrend()
+        this.trendData = response.data.recent_data || []
+        if (this.trendData.length > 0) {
+          this.$nextTick(() => {
+            this.renderTrendChart()
+          })
+        }
+      } catch (error) {
+        console.error('加载趋势数据失败:', error)
+      }
+    },
+    
+    renderSentimentChart() {
+      if (!this.currentResult) return
+      
+      const ctx = this.$refs.sentimentChart.getContext('2d')
+      
+      if (this.sentimentChart) {
+        this.sentimentChart.destroy()
+      }
+      
+      this.sentimentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['积极', '中性', '负面'],
+          datasets: [{
+            data: [
+              this.currentResult.scores.positive,
+              this.currentResult.scores.neutral,
+              this.currentResult.scores.negative
+            ],
+            backgroundColor: ['#67C23A', '#E6A23C', '#F56C6C']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      })
+    },
+    
+    renderTrendChart() {
+      if (this.trendData.length === 0) return
+      
+      const ctx = this.$refs.trendChart.getContext('2d')
+      
+      if (this.trendChart) {
+        this.trendChart.destroy()
+      }
+      
+      // 准备趋势数据
+      const labels = this.trendData.map(item => 
+        new Date(item.timestamp).toLocaleTimeString()
+      )
+      
+      this.trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '积极',
+              data: this.trendData.map(item => item.scores.positive),
+              borderColor: '#67C23A',
+              tension: 0.1,
+              fill: false
+            },
+            {
+              label: '中性',
+              data: this.trendData.map(item => item.scores.neutral),
+              borderColor: '#E6A23C',
+              tension: 0.1,
+              fill: false
+            },
+            {
+              label: '负面',
+              data: this.trendData.map(item => item.scores.negative),
+              borderColor: '#F56C6C',
+              tension: 0.1,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 1
+            }
+          }
+        }
+      })
+    }
+  },
+  
+  beforeUnmount() {
+    if (this.sentimentChart) {
+      this.sentimentChart.destroy()
+    }
+    if (this.trendChart) {
+      this.trendChart.destroy()
+    }
+  }
+}
+</script>
+
+<style scoped>
+.sentiment-analysis {
+  padding: 20px;
+}
+
+.input-section {
+  margin-bottom: 20px;
+}
+
+.result-display {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 15px 0;
+}
+
+.sentiment-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  color: white;
+}
+
+.sentiment-badge.positive {
+  background-color: #67C23A;
+}
+
+.sentiment-badge.neutral {
+  background-color: #E6A23C;
+}
+
+.sentiment-badge.negative {
+  background-color: #F56C6C;
+}
+
+.confidence {
+  color: #606266;
+  font-size: 14px;
+}
+
+.chart-section, .trend-section {
+  margin-top: 20px;
+}
+
+.chart-container {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.trend-chart-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+</style>
